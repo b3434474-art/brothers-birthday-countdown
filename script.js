@@ -1,27 +1,31 @@
 const $ = id => document.getElementById(id);
 
-// Birthday: August 12 at 12:00 AM Mountain Time.
-// On August 12, Mountain Time is MDT (UTC-6), so midnight = 06:00 UTC.
+// Birthday is August 12 at 12:00 AM Mountain Time (America/Denver).
+// August 12 is always MDT (UTC-6), so midnight Mountain Time = 06:00 UTC.
+const BIRTHDAY_MONTH = 7; // August (0-based)
+const BIRTHDAY_DAY = 12;
+const BIRTHDAY_UTC_HOUR = 6;
+
 let target = getNextBirthday();
-let birthday = false;
 let audioCtx;
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let celebrationRunning = false;
 
-function mountainYear() {
+function getMountainYear() {
   return Number(new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Denver',
     year: 'numeric'
   }).format(new Date()));
 }
 
+function birthdayForYear(year) {
+  return Date.UTC(year, BIRTHDAY_MONTH, BIRTHDAY_DAY, BIRTHDAY_UTC_HOUR, 0, 0, 0);
+}
+
 function getNextBirthday() {
-  let year = mountainYear();
-  let target = Date.UTC(year, 7, 12, 6, 0, 0); // Aug 12, 12:00 AM Mountain Time
-  if (Date.now() >= target) {
-    year++;
-    target = Date.UTC(year, 7, 12, 6, 0, 0);
-  }
-  return target;
+  const year = getMountainYear();
+  const thisBirthday = birthdayForYear(year);
+  return Date.now() < thisBirthday ? thisBirthday : birthdayForYear(year + 1);
 }
 
 function beep(freq, duration, type = 'sine', volume = .12, delay = 0) {
@@ -72,13 +76,27 @@ function balloons() {
   }
 }
 
-function update() {
-  const diff = target - Date.now();
+function resetTimer() {
+  // Automatically start the next year's countdown after the birthday.
+  target = getNextBirthday();
+  celebrationRunning = false;
+  $("count").style.display = '';
+  $("celebrate").style.display = 'none';
+  $("title").textContent = 'Birthday Countdown!';
+  $("subtitle").textContent = 'Counting down to August 12 at midnight 🎈';
+  update();
+}
 
+function update() {
+  let diff = target - Date.now();
+
+  // If the target has passed, celebrate once and then immediately reset
+  // the timer to the next August 12. This works every year automatically.
   if (diff <= 0) {
-    if (!birthday) {
-      birthday = true;
+    if (!celebrationRunning) {
+      celebrationRunning = true;
       celebration();
+      setTimeout(resetTimer, 7000);
     }
     return;
   }
@@ -100,11 +118,6 @@ function celebration() {
   birthdaySound();
   setTimeout(cheerSound, 700);
   setTimeout(birthdaySound, 1500);
-  setInterval(() => {
-    confetti(55);
-    balloons();
-    cheerSound();
-  }, 3500);
 }
 
 function startAudio() {
@@ -126,5 +139,6 @@ $("party").onclick = () => {
   cheerSound();
 };
 
+// Keep the timer continuously updated.
 setInterval(update, 250);
 update();
