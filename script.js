@@ -1,32 +1,25 @@
 const $ = id => document.getElementById(id);
 
-// Birthday is always August 12 at 12:00 AM Mountain Time.
-// America/Denver is on MDT (UTC-6) on August 12.
-const MOUNTAIN_OFFSET_HOURS = -6;
+// Birthday: August 12 at 12:00 AM Mountain Time.
+// On August 12, Mountain Time is MDT (UTC-6), so midnight = 06:00 UTC.
 let target = getNextBirthday();
 let birthday = false;
 let audioCtx;
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
-function getMountainParts(date = new Date()) {
-  return new Intl.DateTimeFormat('en-US', {
+function mountainYear() {
+  return Number(new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Denver',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hourCycle: 'h23'
-  }).formatToParts(date).reduce((obj, part) => {
-    if (part.type !== 'literal') obj[part.type] = part.value;
-    return obj;
-  }, {});
+    year: 'numeric'
+  }).format(new Date()));
 }
 
 function getNextBirthday() {
-  const mountain = getMountainParts();
-  let year = Number(mountain.year);
-  let target = new Date(`${year}-08-12T00:00:00-06:00`);
-  if (Date.now() >= target.getTime()) {
+  let year = mountainYear();
+  let target = Date.UTC(year, 7, 12, 6, 0, 0); // Aug 12, 12:00 AM Mountain Time
+  if (Date.now() >= target) {
     year++;
-    target = new Date(`${year}-08-12T00:00:00-06:00`);
+    target = Date.UTC(year, 7, 12, 6, 0, 0);
   }
   return target;
 }
@@ -80,7 +73,7 @@ function balloons() {
 }
 
 function update() {
-  const diff = target.getTime() - Date.now();
+  const diff = target - Date.now();
 
   if (diff <= 0) {
     if (!birthday) {
@@ -133,6 +126,5 @@ $("party").onclick = () => {
   cheerSound();
 };
 
-// Update four times per second so the countdown stays smooth.
 setInterval(update, 250);
 update();
