@@ -1,1 +1,138 @@
-const $=id=>document.getElementById(id);let target=nextBirthday(),birthday=false,started=false;const AudioContextClass=window.AudioContext||window.webkitAudioContext;let audioCtx;const TZ='America/Denver';function mountainNow(){return new Date(new Intl.DateTimeFormat('en-US',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).reduce((o,p)=>(o[p.type]=p.value,o),{}).year+'-'+String(new Intl.DateTimeFormat('en-US',{timeZone:TZ,month:'2-digit'}).format(new Date())).padStart(2,'0')+'-01')}function nextBirthday(){const now=new Date();let y=Number(new Intl.DateTimeFormat('en-US',{timeZone:TZ,year:'numeric'}).format(now));let d=new Date(`${y}-08-12T00:00:00-06:00`);if(now>=d)d=new Date(`${y+1}-08-12T00:00:00-06:00`);return d}function beep(freq,duration,type='sine',volume=.12,delay=0){if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(0,audioCtx.currentTime+delay);g.gain.linearRampToValueAtTime(volume,audioCtx.currentTime+delay+.02);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+delay+duration);o.connect(g);g.connect(audioCtx.destination);o.start(audioCtx.currentTime+delay);o.stop(audioCtx.currentTime+delay+duration+.03)}function birthdaySound(){if(!audioCtx)return;beep(523,.18,'square',.12);beep(659,.18,'square',.12,.2);beep(784,.25,'square',.12,.4);beep(1047,.55,'triangle',.16,.7);beep(1319,.7,'triangle',.12,1)}function cheerSound(){if(!audioCtx)return;[440,554,659,880].forEach((f,i)=>beep(f,.16,'sawtooth',.07,i*.12))}function confetti(n=100){for(let i=0;i<n;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=`hsl(${Math.random()*360},100%,65%)`;c.style.animationDelay=Math.random()*1.5+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),4500)}}function balloons(){for(let i=0;i<7;i++){const e=document.createElement('div');e.className='balloon';e.textContent='🎈';e.style.left=Math.random()*100+'vw';e.style.animationDuration=(5+Math.random()*6)+'s';document.body.appendChild(e);setTimeout(()=>e.remove(),12000)}}function update(){const now=new Date(),diff=target-now;if(diff<=0){if(!birthday){birthday=true;celebration()}return}const s=Math.floor(diff/1000);$('days').textContent=Math.floor(s/86400);$('hours').textContent=Math.floor(s%86400/3600);$('minutes').textContent=Math.floor(s%3600/60);$('seconds').textContent=s%60}function celebration(){target=nextBirthday();$('title').textContent='🎉 HAPPY BIRTHDAY! 🎉';$('subtitle').textContent='Today is the big day — Mountain Time!';$('count').style.display='none';$('celebrate').style.display='block';confetti(220);balloons();birthdaySound();setInterval(()=>{confetti(55);balloons();cheerSound()},3500)}function startAudio(){if(!audioCtx)audioCtx=new AudioContextClass();if(audioCtx.state==='suspended')audioCtx.resume();started=true}$('airhorn').onclick=()=>{startAudio();beep(220,.35,'sawtooth',.16);beep(330,.45,'sawtooth',.14,.25)};$('tada').onclick=()=>{startAudio();birthdaySound()};$('cheer').onclick=()=>{startAudio();cheerSound()};$('party').onclick=()=>{startAudio();confetti(150);balloons();cheerSound()};setInterval(update,250);update();
+const $ = id => document.getElementById(id);
+
+// Birthday is always August 12 at 12:00 AM Mountain Time.
+// America/Denver is on MDT (UTC-6) on August 12.
+const MOUNTAIN_OFFSET_HOURS = -6;
+let target = getNextBirthday();
+let birthday = false;
+let audioCtx;
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+function getMountainParts(date = new Date()) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Denver',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date).reduce((obj, part) => {
+    if (part.type !== 'literal') obj[part.type] = part.value;
+    return obj;
+  }, {});
+}
+
+function getNextBirthday() {
+  const mountain = getMountainParts();
+  let year = Number(mountain.year);
+  let target = new Date(`${year}-08-12T00:00:00-06:00`);
+  if (Date.now() >= target.getTime()) {
+    year++;
+    target = new Date(`${year}-08-12T00:00:00-06:00`);
+  }
+  return target;
+}
+
+function beep(freq, duration, type = 'sine', volume = .12, delay = 0) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(.001, audioCtx.currentTime + delay);
+  g.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + delay + .02);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + delay + duration);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(audioCtx.currentTime + delay);
+  o.stop(audioCtx.currentTime + delay + duration + .03);
+}
+
+function birthdaySound() {
+  if (!audioCtx) return;
+  [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, .25, 'triangle', .13, i * .13));
+}
+
+function cheerSound() {
+  if (!audioCtx) return;
+  [440, 554, 659, 880].forEach((f, i) => beep(f, .16, 'sawtooth', .07, i * .12));
+}
+
+function confetti(n = 100) {
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('i');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = `hsl(${Math.random() * 360},100%,65%)`;
+    c.style.animationDelay = Math.random() * 1.5 + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4500);
+  }
+}
+
+function balloons() {
+  for (let i = 0; i < 7; i++) {
+    const e = document.createElement('div');
+    e.className = 'balloon';
+    e.textContent = '🎈';
+    e.style.left = Math.random() * 100 + 'vw';
+    e.style.animationDuration = (5 + Math.random() * 6) + 's';
+    document.body.appendChild(e);
+    setTimeout(() => e.remove(), 12000);
+  }
+}
+
+function update() {
+  const diff = target.getTime() - Date.now();
+
+  if (diff <= 0) {
+    if (!birthday) {
+      birthday = true;
+      celebration();
+    }
+    return;
+  }
+
+  const totalSeconds = Math.floor(diff / 1000);
+  $("days").textContent = Math.floor(totalSeconds / 86400);
+  $("hours").textContent = Math.floor((totalSeconds % 86400) / 3600);
+  $("minutes").textContent = Math.floor((totalSeconds % 3600) / 60);
+  $("seconds").textContent = totalSeconds % 60;
+}
+
+function celebration() {
+  $("title").textContent = '🎉 HAPPY BIRTHDAY! 🎉';
+  $("subtitle").textContent = 'IT’S MIDNIGHT IN MOUNTAIN TIME! 🎂🔊';
+  $("count").style.display = 'none';
+  $("celebrate").style.display = 'block';
+  confetti(220);
+  balloons();
+  birthdaySound();
+  setTimeout(cheerSound, 700);
+  setTimeout(birthdaySound, 1500);
+  setInterval(() => {
+    confetti(55);
+    balloons();
+    cheerSound();
+  }, 3500);
+}
+
+function startAudio() {
+  if (!audioCtx) audioCtx = new AudioContextClass();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+$("airhorn").onclick = () => {
+  startAudio();
+  beep(220, .35, 'sawtooth', .16);
+  beep(330, .45, 'sawtooth', .14, .25);
+};
+$("tada").onclick = () => { startAudio(); birthdaySound(); };
+$("cheer").onclick = () => { startAudio(); cheerSound(); };
+$("party").onclick = () => {
+  startAudio();
+  confetti(150);
+  balloons();
+  cheerSound();
+};
+
+// Update four times per second so the countdown stays smooth.
+setInterval(update, 250);
+update();
