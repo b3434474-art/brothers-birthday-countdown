@@ -1,31 +1,74 @@
 const $ = id => document.getElementById(id);
-
-// Birthday is August 12 at 12:00 AM Mountain Time (America/Denver).
-// August 12 is always MDT (UTC-6), so midnight Mountain Time = 06:00 UTC.
-const BIRTHDAY_MONTH = 7; // August (0-based)
-const BIRTHDAY_DAY = 12;
-const BIRTHDAY_UTC_HOUR = 6;
-
+const TIME_ZONE = 'America/Denver';
+const MONTH = 8;
+const DAY = 12;
 let target = getNextBirthday();
+let celebrationRunning = false;
 let audioCtx;
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-let celebrationRunning = false;
 
 function getMountainYear() {
   return Number(new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Denver',
+    timeZone: TIME_ZONE,
     year: 'numeric'
   }).format(new Date()));
 }
 
-function birthdayForYear(year) {
-  return Date.UTC(year, BIRTHDAY_MONTH, BIRTHDAY_DAY, BIRTHDAY_UTC_HOUR, 0, 0, 0);
+// Convert a Mountain-Time date to the correct instant without relying on
+// the visitor's own time zone. August 12 is MDT (UTC-6).
+function birthdayTimestamp(year) {
+  return Date.UTC(year, MONTH - 1, DAY, 6, 0, 0);
 }
 
 function getNextBirthday() {
   const year = getMountainYear();
-  const thisBirthday = birthdayForYear(year);
-  return Date.now() < thisBirthday ? thisBirthday : birthdayForYear(year + 1);
+  const thisBirthday = birthdayTimestamp(year);
+  return Date.now() < thisBirthday ? thisBirthday : birthdayTimestamp(year + 1);
+}
+
+function update() {
+  const diff = target - Date.now();
+
+  if (diff <= 0) {
+    if (!celebrationRunning) {
+      celebrationRunning = true;
+      celebration();
+    }
+    return;
+  }
+
+  const totalSeconds = Math.floor(diff / 1000);
+  $("days").textContent = Math.floor(totalSeconds / 86400);
+  $("hours").textContent = Math.floor((totalSeconds % 86400) / 3600);
+  $("minutes").textContent = Math.floor((totalSeconds % 3600) / 60);
+  $("seconds").textContent = totalSeconds % 60;
+}
+
+function resetCountdown() {
+  // Always calculate a fresh target. This makes the timer repeat every year.
+  target = getNextBirthday();
+  celebrationRunning = false;
+  $("count").style.display = "flex";
+  $("celebrate").style.display = "none";
+  $("title").textContent = "Birthday Countdown!";
+  $("subtitle").textContent = "Counting down to August 12 at midnight 🎈";
+  update();
+}
+
+function celebration() {
+  $("title").textContent = '🎉 HAPPY BIRTHDAY! 🎉';
+  $("subtitle").textContent = 'IT’S MIDNIGHT IN MOUNTAIN TIME! 🎂🔊';
+  $("count").style.display = 'none';
+  $("celebrate").style.display = 'block';
+  confetti(220);
+  balloons();
+  birthdaySound();
+  setTimeout(cheerSound, 700);
+  setTimeout(birthdaySound, 1500);
+
+  // Show the birthday celebration for 10 seconds, then start
+  // the next yearly countdown automatically.
+  setTimeout(resetCountdown, 10000);
 }
 
 function beep(freq, duration, type = 'sine', volume = .12, delay = 0) {
@@ -76,51 +119,8 @@ function balloons() {
   }
 }
 
-function resetTimer() {
-  // Automatically start the next year's countdown after the birthday.
-  target = getNextBirthday();
-  celebrationRunning = false;
-  $("count").style.display = '';
-  $("celebrate").style.display = 'none';
-  $("title").textContent = 'Birthday Countdown!';
-  $("subtitle").textContent = 'Counting down to August 12 at midnight 🎈';
-  update();
-}
-
-function update() {
-  let diff = target - Date.now();
-
-  // If the target has passed, celebrate once and then immediately reset
-  // the timer to the next August 12. This works every year automatically.
-  if (diff <= 0) {
-    if (!celebrationRunning) {
-      celebrationRunning = true;
-      celebration();
-      setTimeout(resetTimer, 7000);
-    }
-    return;
-  }
-
-  const totalSeconds = Math.floor(diff / 1000);
-  $("days").textContent = Math.floor(totalSeconds / 86400);
-  $("hours").textContent = Math.floor((totalSeconds % 86400) / 3600);
-  $("minutes").textContent = Math.floor((totalSeconds % 3600) / 60);
-  $("seconds").textContent = totalSeconds % 60;
-}
-
-function celebration() {
-  $("title").textContent = '🎉 HAPPY BIRTHDAY! 🎉';
-  $("subtitle").textContent = 'IT’S MIDNIGHT IN MOUNTAIN TIME! 🎂🔊';
-  $("count").style.display = 'none';
-  $("celebrate").style.display = 'block';
-  confetti(220);
-  balloons();
-  birthdaySound();
-  setTimeout(cheerSound, 700);
-  setTimeout(birthdaySound, 1500);
-}
-
 function startAudio() {
+  if (!AudioContextClass) return;
   if (!audioCtx) audioCtx = new AudioContextClass();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
@@ -139,6 +139,5 @@ $("party").onclick = () => {
   cheerSound();
 };
 
-// Keep the timer continuously updated.
-setInterval(update, 250);
 update();
+setInterval(update, 250);
